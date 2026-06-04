@@ -1,4 +1,4 @@
-# llm-math
+# math-prompt-eval
 
 A bare-LLM single-shot math solver plus a complete prompt-engineering
 framework around it. The solver makes **one** chat completion per
@@ -40,27 +40,31 @@ The framework also reads `DEEPSEEK_API_KEY` (or `MODEL_API_KEY`) when
 
 ## Quickstart (5 commands)
 
+Prepare your own input JSONL file, for example `problems.jsonl`. Each
+row should contain at least `problem_id` and `problem_text`; evaluation
+also needs an `expected_answer` field in the expected-answer file.
+
 ```bash
 # 1) Run a single demo problem (one LLM call)
 llm-math-run --demo --prompt naive_v1
 
 # 2) Run a batch on a problem set
-llm-math-run --input data/converted/interns1_504.jsonl --prompt naive_v1 --limit 6
+llm-math-run --input problems.jsonl --prompt naive_v1 --limit 6
 
 # 3) Validate the resulting JSONL against expected answers
 llm-math-evaluate \
     --results outputs/naive_v1/intern-s1/20260604_120000/results.jsonl \
-    --expected data/converted/interns1_504.jsonl
+    --expected problems.jsonl
 
 # 4) Sweep every registered prompt over the same input
-llm-math-sweep --input data/converted/interns1_504.jsonl --limit 10
+llm-math-sweep --input problems.jsonl --limit 10
 
 # 5) Compare all sweeps sharing a timestamp, with markdown
 llm-math-compare-prompts \
     --results outputs/naive_v1/intern-s1/<ts>/results.jsonl --label naive_v1 \
     --results outputs/cot_v1/intern-s1/<ts>/results.jsonl   --label cot_v1   \
     --results outputs/boxed_v1/intern-s1/<ts>/results.jsonl --label boxed_v1 \
-    --expected data/converted/interns1_504.jsonl --markdown
+    --expected problems.jsonl --markdown
 ```
 
 Direct module invocations such as `uv run python -m runtime.run` and
@@ -130,16 +134,16 @@ Three built-in templates ship with the framework:
 ## A/B prompt experiments (end-to-end)
 
 The full workflow for a 3-prompt A/B run is three commands and one
-markdown report. Example on a 504-problem set with `--dry-run` to
+markdown report. Example on a problem set with `--dry-run` to
 illustrate the layout without burning API credits:
 
 ```bash
 # 1) Sweep three prompts over the same input, sharing one timestamp.
 llm-math-sweep \
-    --input data/converted/interns1_504.jsonl \
+    --input problems.jsonl \
     --only naive_v1,cot_v1,boxed_v1 \
     --model intern-s1 \
-    --limit 504 \
+    --limit 100 \
     --dry-run
 # → outputs/{naive_v1,cot_v1,boxed_v1}/intern-s1/<ts>/results.jsonl
 # → outputs/.../sweep_summary.json
@@ -147,7 +151,7 @@ llm-math-sweep \
 # 2) Validate every per-prompt JSONL against expected answers.
 llm-math-evaluate-sweep \
     --sweep-dir outputs \
-    --expected data/converted/interns1_504.jsonl
+    --expected problems.jsonl
 # → outputs/{prompt}/intern-s1/<ts>/validation_report.json
 # → outputs/.../sweep_eval_summary.json
 
@@ -156,7 +160,7 @@ llm-math-compare-prompts \
     --results outputs/naive_v1/intern-s1/<ts>/results.jsonl  --label naive_v1  \
     --results outputs/cot_v1/intern-s1/<ts>/results.jsonl    --label cot_v1    \
     --results outputs/boxed_v1/intern-s1/<ts>/results.jsonl  --label boxed_v1  \
-    --expected data/converted/interns1_504.jsonl \
+    --expected problems.jsonl \
     --markdown
 # → prompt_comparison_report.json
 # → prompt_comparison_report.md
@@ -169,9 +173,9 @@ The emitted markdown looks like:
 
 | label     | total | local_acc | judge_acc | fallback  | median_latency (s) |
 |-----------|------:|----------:|----------:|-----------|-------------------:|
-| naive_v1  |   504 |    79.37% |       n/a | 3 (0.6%)  |              3.42  |
-| cot_v1    |   504 |    82.14% |       n/a | 1 (0.2%)  |              5.18  |
-| boxed_v1  |   504 |    78.97% |       n/a | 5 (1.0%)  |              4.20  |
+| naive_v1  |   100 |    79.37% |       n/a | 3 (0.6%)  |              3.42  |
+| cot_v1    |   100 |    82.14% |       n/a | 1 (0.2%)  |              5.18  |
+| boxed_v1  |   100 |    78.97% |       n/a | 5 (1.0%)  |              4.20  |
 
 ## Local-accuracy deltas (rows − cols, percentage points)
 
@@ -217,8 +221,8 @@ for per-prompt validation.
 Smoke-test the harness without an API key:
 
 ```bash
-llm-math-run --input data/converted/interns1_504.jsonl --dry-run --limit 3
-llm-math-sweep --input data/converted/interns1_504.jsonl --only naive_v1 --dry-run --limit 3
+llm-math-run --input problems.jsonl --dry-run --limit 3
+llm-math-sweep --input problems.jsonl --only naive_v1 --dry-run --limit 3
 ```
 
 `--dry-run` substitutes a stub solver that emits a `fallback_solution`
@@ -238,15 +242,11 @@ runtime/                     # run-model module
 evaluation/                  # evaluation module
 ├── evaluate.py              # CLI: validate one results file vs. expected
 ├── evaluate_sweep.py        # CLI: validate every results.jsonl under outputs/
-├── compare_prompts.py       # CLI: N-prompt A/B comparison report
-├── compare.py               # CLI: bare-vs-agent comparison
-└── convert_benchmarks.py    # CLI: convert upstream benchmark files
+└── compare_prompts.py       # CLI: N-prompt A/B comparison report
 shared/                      # shared infrastructure
 ├── io.py                    # load_problems, resume helpers, RpmLimiter
 └── vendor/                  # vendored parser, normalizer, validator
 tests/                       # pytest unit tests (62 tests)
-scripts/
-└── migrate_outputs.py       # one-shot: move legacy flat outputs/ to outputs/{prompt}/{model}/{ts}/
 ```
 
 `BareLLMSolver.solve()` flow:
@@ -275,35 +275,6 @@ the boxed-prompt post-processing, the nested output layout in `run.py`,
 and end-to-end dry-run behaviour for `compare_prompts`, `prompt_sweep`,
 and `evaluate_sweep`.
 
-## Migration from v0.1.x (flat `outputs/` layout)
-
-If you have an existing `outputs/` from a v0.1.x install
-(`outputs/results.jsonl`, `outputs/run_summary.json`, `outputs/logs/`,
-`outputs/validation_report.json` all in one flat directory), run the
-one-shot migration script to move it into the new nested layout:
-
-```bash
-python scripts/migrate_outputs.py
-# Will migrate:
-#   outputs/results.jsonl       → outputs/naive_v1/intern-s1/20260603_150000/results.jsonl
-#   outputs/run_summary.json    → outputs/naive_v1/intern-s1/20260603_150000/run_summary.json
-#   outputs/validation_report.json → outputs/naive_v1/intern-s1/20260603_150000/validation_report.json
-#   outputs/logs/               → outputs/naive_v1/intern-s1/20260603_150000/logs/
-#   (.bak_before_retry* files in outputs/ are left in place as legacy.)
-# Proceed? [y/N] y
-```
-
-The script is hard-coded to the canonical migration target
-(`naive_v1` / `intern-s1` / `20260603_150000`); edit the constants at
-the top of the file if your run used a different prompt / model. After
-migration, re-validate to confirm the round-trip:
-
-```bash
-llm-math-evaluate \
-    --results outputs/naive_v1/intern-s1/20260603_150000/results.jsonl \
-    --expected data/converted/interns1_504.jsonl
-```
-
 ## Vendoring notes
 
 The three vendored files in `shared/vendor/` are byte-identical
@@ -326,7 +297,7 @@ addition.
 
 - **McNemar / paired significance tests** — the comparison report shows
   accuracy deltas and a winner map; with the current data sizes
-  (≤504 problems) the per-prompt deltas are usually clearly readable
+  (your problem-set size) the per-prompt deltas are usually clearly readable
   without a paired test.
 - **Per-token / per-run cost tracking** — the framework records
   `latency_seconds` in `run_summary.json` but not dollar cost; computing

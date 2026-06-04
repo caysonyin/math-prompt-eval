@@ -2,8 +2,7 @@
 
 Compare two or more results JSONL files (typically produced by running the
 same model over different prompt templates) and emit a single comparison
-report. Built specifically for prompt A/B experiments — for bare-vs-agent
-comparisons use `evaluation.compare`.
+report. Built specifically for prompt A/B experiments.
 
 The report has four top-level sections:
 
