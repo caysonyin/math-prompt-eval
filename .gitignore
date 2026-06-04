@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environment
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Outputs
+outputs/
+*.log
+*.tmp
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
