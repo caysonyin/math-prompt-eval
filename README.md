@@ -275,43 +275,4 @@ the boxed-prompt post-processing, the nested output layout in `run.py`,
 and end-to-end dry-run behaviour for `compare_prompts`, `prompt_sweep`,
 and `evaluate_sweep`.
 
-## Vendoring notes
 
-The three vendored files in `shared/vendor/` are byte-identical
-copies of:
-
-- `mathsolve-agent/math_prove/parser.py`
-- `mathsolve-agent/math_prove/normalizer.py`
-- `mathsolve-agent/math_prove/validator.py`
-
-Each starts with an attribution header. The relative imports
-(`from .normalizer import …`, `from .parser import …`) work unchanged
-because the three files are siblings inside the `shared.vendor`
-package. There is no `lagent` runtime dependency in any vendored file.
-
-If the upstream changes, the vendored copies need to be re-synced
-manually. A `test_vendor_drift.py` to flag this is a possible future
-addition.
-
-## Limitations (deferred)
-
-- **McNemar / paired significance tests** — the comparison report shows
-  accuracy deltas and a winner map; with the current data sizes
-  (your problem-set size) the per-prompt deltas are usually clearly readable
-  without a paired test.
-- **Per-token / per-run cost tracking** — the framework records
-  `latency_seconds` in `run_summary.json` but not dollar cost; computing
-  it would require an explicit price table per model.
-- **Automatic prompt tuning (DSPy-style)** — adding a new prompt still
-  requires a human in the loop to author the template.
-- **Cross-sweep resume** — `llm-math-run --resume` resumes a single
-  prompt's JSONL; a killed sweep cannot be resumed as a single unit
-  (re-running the sweep will re-process problems for prompts whose
-  results.jsonl was never written).
-- **Multi-judge ensemble scoring beyond 3 models** — the
-  `LLMJudgeConfig` supports up to 3 judges, matching the upstream
-  3-model majority-vote evaluator. Larger ensembles would need a
-  separate `LLMJudgeConfig` variant.
-- **Web UI / dashboard** — the markdown table emitted by
-  `llm-math-compare-prompts --markdown` is the only built-in
-  visualization.
