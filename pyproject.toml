@@ -22,22 +22,22 @@ dev = [
 xlsx = ["pandas>=2.0", "pyarrow>=12.0", "openpyxl>=3.1"]
 
 [project.scripts]
-llm-math-run = "llm_math.run:main"
-llm-math-evaluate = "llm_math.evaluate:main"
-llm-math-compare = "llm_math.compare:main"
-llm-math-sweep = "llm_math.prompt_sweep:main"
-llm-math-compare-prompts = "llm_math.compare_prompts:main"
-llm-math-evaluate-sweep = "llm_math.evaluate_sweep:main"
-llm-math-convert = "llm_math.convert_benchmarks:main"
+llm-math-run = "runtime.run:main"
+llm-math-evaluate = "evaluation.evaluate:main"
+llm-math-compare = "evaluation.compare:main"
+llm-math-sweep = "runtime.prompt_sweep:main"
+llm-math-compare-prompts = "evaluation.compare_prompts:main"
+llm-math-evaluate-sweep = "evaluation.evaluate_sweep:main"
+llm-math-convert = "evaluation.convert_benchmarks:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["llm_math*"]
-exclude = ["llm_math.tests*"]
+include = ["runtime*", "evaluation*", "shared*"]
+exclude = ["tests*"]
 
 [tool.pytest.ini_options]
-testpaths = ["llm_math/tests"]
+testpaths = ["tests"]
 addopts = "-ra -q"

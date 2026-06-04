@@ -22,6 +22,10 @@ venv/
 
 # Outputs
 outputs/
+sweep_summary.json
+sweep_eval_summary.json
+prompt_comparison_report.json
+prompt_comparison_report.md
 *.log
 *.tmp
 

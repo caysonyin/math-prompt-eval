@@ -63,7 +63,8 @@ llm-math-compare-prompts \
     --expected data/converted/interns1_504.jsonl --markdown
 ```
 
-`uv run python -m llm_math.<module>` is interchangeable with the
+Direct module invocations such as `uv run python -m runtime.run` and
+`uv run python -m evaluation.evaluate` are interchangeable with the
 console-script names listed above.
 
 ## Output directory convention
@@ -94,15 +95,15 @@ compatibility.
 
 ## Add a new prompt template
 
-Drop a single file in `llm_math/prompts/` — no imports, no edits
+Drop a single file in `runtime/prompts/` — no imports, no edits
 elsewhere. Each module calls `register_prompt(...)` once at import
 time, and `pkgutil.iter_modules` auto-discovers the new file at
 package import.
 
 ```python
-# llm_math/prompts/naive_v2.py
-from llm_math.prompts._base import PromptTemplate
-from llm_math.prompts import register_prompt
+# runtime/prompts/naive_v2.py
+from runtime.prompts._base import PromptTemplate
+from runtime.prompts import register_prompt
 
 register_prompt(PromptTemplate(
     name="naive_v2",
@@ -227,26 +228,23 @@ and the validation report all exercise end-to-end without API calls.
 ## Architecture
 
 ```
-llm_math/
-├── vendor/                  # byte-identical copies of mathsolve-agent/math_prove/{parser,normalizer,validator}.py
-│   └── __init__.py          # public-surface re-exports
-├── io.py                    # load_problems, resume helpers, RpmLimiter
+runtime/                     # run-model module
 ├── llm_client.py            # OpenAI-compatible chat client with retry + lock
 ├── prompts/                 # pkgutil-discovered @register_prompt('name') templates
-│   ├── _base.py             # PromptTemplate dataclass + _validate() at register time
-│   ├── naive_v1.py          # single-shot JSON
-│   ├── cot_v1.py            # chain-of-thought + JSON
-│   └── boxed_v1.py          # free-form \boxed{...}
 ├── solver.py                # BareLLMSolver: one prompt, one chat call, one MathSolution
-├── runner.py                # ThreadPoolExecutor + RpmLimiter parallel batch
-├── run.py                   # CLI: --demo, --dry-run, batch (writes outputs/{prompt}/{model}/{ts}/)
-├── evaluate.py              # CLI: validate one results file vs. expected (2-tier evaluator)
+├── runner.py                # ThreadPoolExecutor parallel batch runner
+├── run.py                   # CLI: --demo, --dry-run, batch output layout
+└── prompt_sweep.py          # CLI: run N prompts over one input
+evaluation/                  # evaluation module
+├── evaluate.py              # CLI: validate one results file vs. expected
 ├── evaluate_sweep.py        # CLI: validate every results.jsonl under outputs/
-├── compare_prompts.py       # CLI: N-prompt A/B comparison report (JSON + markdown)
-├── prompt_sweep.py          # CLI: run N prompts over one input, sharing one timestamp
-├── compare.py               # (untouched) CLI: bare-vs-agent comparison — separate use case
-├── convert_benchmarks.py    # CLI: convert upstream benchmark files to the framework's input format
-└── tests/                   # pytest unit tests (62 tests)
+├── compare_prompts.py       # CLI: N-prompt A/B comparison report
+├── compare.py               # CLI: bare-vs-agent comparison
+└── convert_benchmarks.py    # CLI: convert upstream benchmark files
+shared/                      # shared infrastructure
+├── io.py                    # load_problems, resume helpers, RpmLimiter
+└── vendor/                  # vendored parser, normalizer, validator
+tests/                       # pytest unit tests (62 tests)
 scripts/
 └── migrate_outputs.py       # one-shot: move legacy flat outputs/ to outputs/{prompt}/{model}/{ts}/
 ```
@@ -267,7 +265,7 @@ code path with the upstream.
 ## Tests
 
 ```bash
-uv run pytest llm_math/tests/ -q
+uv run pytest tests/ -q
 ```
 
 62 unit tests cover the prompt registry (auto-discovery, validation,
@@ -308,7 +306,7 @@ llm-math-evaluate \
 
 ## Vendoring notes
 
-The three vendored files in `llm_math/vendor/` are byte-identical
+The three vendored files in `shared/vendor/` are byte-identical
 copies of:
 
 - `mathsolve-agent/math_prove/parser.py`
@@ -317,7 +315,7 @@ copies of:
 
 Each starts with an attribution header. The relative imports
 (`from .normalizer import …`, `from .parser import …`) work unchanged
-because the three files are siblings inside the `llm_math.vendor`
+because the three files are siblings inside the `shared.vendor`
 package. There is no `lagent` runtime dependency in any vendored file.
 
 If the upstream changes, the vendored copies need to be re-synced
